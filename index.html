@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr" id="html-root">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CharacterVerse — AI Character Chat</title>
+  <meta name="description"
+    content="Chat with AI-powered characters. Create your own AI personas and roleplay in immersive conversations powered by any LLM API." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Outfit:wght@300;400;500;600;700;800&display=swap"
+    rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+
+<body>
+
+  <!-- ===== LOADING SCREEN ===== -->
+  <div id="loading-screen" class="loading-screen">
+    <div class="loading-logo">
+      <div class="loading-icon">
+        <svg viewBox="0 0 40 40" fill="none">
+          <circle cx="20" cy="20" r="18" stroke="url(#grad1)" stroke-width="2" />
+          <path d="M12 20c0-4.4 3.6-8 8-8s8 3.6 8 8-3.6 8-8 8" stroke="url(#grad1)" stroke-width="2"
+            stroke-linecap="round" />
+          <circle cx="20" cy="20" r="4" fill="url(#grad1)" />
+          <defs>
+            <linearGradient id="grad1" x1="0" y1="0" x2="40" y2="40">
+              <stop offset="0%" stop-color="#a78bfa" />
+              <stop offset="100%" stop-color="#60a5fa" />
+            </linearGradient>
+          </defs>
+        </svg>
+      </div>
+      <span class="loading-brand">CharacterVerse</span>
+    </div>
+    <div class="loading-steps">
+      <div class="loading-step active" id="ls1">Initializing...</div>
+      <div class="loading-step" id="ls2">Loading characters...</div>
+      <div class="loading-step" id="ls3">Ready!</div>
+    </div>
+    <div class="loading-bar-container">
+      <div class="loading-bar"></div>
+    </div>
+  </div>
+
+  <!-- ===== APP ROOT ===== -->
+  <div id="app" class="app hidden">
+
+    <!-- API SETUP MODAL -->
+    <div id="api-modal" class="modal-backdrop">
+      <div class="modal-container api-modal-container">
+        <div class="modal-header">
+          <div class="modal-logo-row">
+            <div class="logo-icon-sm">
+              <svg viewBox="0 0 24 24" fill="none">
+                <circle cx="12" cy="12" r="10" stroke="url(#mgrad)" stroke-width="1.5" />
+                <path d="M7 12c0-2.76 2.24-5 5-5s5 2.24 5 5-2.24 5-5 5" stroke="url(#mgrad)" stroke-width="1.5"
+                  stroke-linecap="round" />
+                <circle cx="12" cy="12" r="2.5" fill="url(#mgrad)" />
+                <defs>
+                  <linearGradient id="mgrad" x1="0" y1="0" x2="24" y2="24">
+                    <stop offset="0%" stop-color="#a78bfa" />
+                    <stop offset="100%" stop-color="#60a5fa" />
+                  </linearGradient>
+                </defs>
+              </svg>
+            </div>
+            <span class="modal-logo-name">CharacterVerse</span>
+          </div>
+          <p class="modal-subtitle">Connect your AI API to start chatting with characters</p>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label"><span class="label-icon">🔗</span>API Endpoint URL</label>
+            <div class="input-wrapper">
+              <input type="url" id="api-url" class="form-input" placeholder="https://api.openai.com/v1/chat/completions"
+                autocomplete="off" spellcheck="false" />
+              <div class="input-hint">OpenAI-compatible endpoint URL</div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label"><span class="label-icon">🔑</span>API Key</label>
+            <div class="input-wrapper">
+              <div class="password-field">
+                <input type="password" id="api-key" class="form-input" placeholder="sk-..." autocomplete="off"
+                  spellcheck="false" />
+                <button class="toggle-visibility" onclick="toggleApiKeyVisibility()" aria-label="Toggle visibility">
+                  <svg id="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z" />
+                    <circle cx="12" cy="12" r="3" />
+                  </svg>
+                </button>
+              </div>
+              <div class="input-hint">🔒 Stored locally — never sent to our servers</div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label"><span class="label-icon">🤖</span>Model Name</label>
+            <div class="input-wrapper">
+              <input type="text" id="api-model" class="form-input"
+                placeholder="gpt-4o, claude-3-5-sonnet, gemini-pro..." autocomplete="off" />
+              <div class="quick-models">
+                <span class="quick-label">Quick:</span>
+                <button class="model-pill" onclick="setModel('gpt-4o')">GPT-4o</button>
+                <button class="model-pill" onclick="setModel('gpt-3.5-turbo')">GPT-3.5</button>
+                <button class="model-pill" onclick="setModel('claude-3-5-sonnet-20241022')">Claude 3.5</button>
+                <button class="model-pill" onclick="setModel('gemini-1.5-pro')">Gemini 1.5</button>
+              </div>
+            </div>
+          </div>
+          <div class="modal-test-row">
+            <button id="test-api-btn" class="btn-test" onclick="testAPIConnection()"><span class="btn-icon">⚡</span>Test
+              Connection</button>
+            <div id="test-status" class="test-status hidden"></div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn-primary" onclick="saveAPISettings()" id="save-api-btn">
+            <span>Continue to CharacterVerse</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M5 12h14M12 5l7 7-7 7" />
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- USER PROFILE MODAL -->
+    <div id="profile-modal" class="modal-backdrop hidden">
+      <div class="modal-container profile-modal-container">
+        <div class="modal-header">
+          <h2>👤 Your Profile</h2>
+          <button class="modal-close-btn" onclick="closeProfileModal()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M18 6L6 18M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="profile-avatar-section">
+            <div class="profile-avatar-ring" id="profile-avatar-ring" onclick="triggerProfileAvatarUpload()">
+              <div id="profile-avatar-display" class="profile-avatar-display">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                  <circle cx="12" cy="7" r="4" />
+                </svg>
+              </div>
+              <div class="profile-avatar-edit-badge">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                </svg>
+              </div>
+            </div>
+            <input type="file" id="profile-avatar-input" accept="image/*" class="hidden"
+              onchange="handleProfileAvatarUpload(event)" />
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Display Name *</label>
+              <input type="text" id="profile-name" class="form-input" placeholder="Your name..." maxlength="30" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Gender</label>
+              <div class="gender-selector">
+                <label class="gender-option">
+                  <input type="radio" name="profile-gender" value="male" />
+                  <span class="gender-chip">♂ Male</span>
+                </label>
+                <label class="gender-option">
+                  <input type="radio" name="profile-gender" value="female" />
+                  <span class="gender-chip">♀ Female</span>
+                </label>
+                <label class="gender-option">
+                  <input type="radio" name="profile-gender" value="other" checked />
+                  <span class="gender-chip">✦ Other</span>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">About You <span class="label-optional">(optional)</span></label>
+            <textarea id="profile-bio" class="form-textarea" rows="2"
+              placeholder="A little about yourself that characters can use..."></textarea>
+          </div>
+
+          <div class="profile-info-box">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <circle cx="12" cy="12" r="10" />
+              <path d="M12 16v-4M12 8h.01" />
+            </svg>
+            Your profile helps AI characters address you personally and tailor responses to your preferences.
+          </div>
+        </div>
+        <div class="modal-footer row-footer">
+          <button class="btn-ghost" onclick="closeProfileModal()">Cancel</button>
+          <button class="btn-primary auto-width" onclick="saveProfile()">Save Profile</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <div class="brand">
+          <div class="brand-icon">
+            <svg viewBox="0 0 24 24" fill="none">
+              <circle cx="12" cy="12" r="10" stroke="url(#bgrad)" stroke-width="1.5" />
+              <path d="M7 12c0-2.76 2.24-5 5-5s5 2.24 5 5-2.24 5-5 5" stroke="url(#bgrad)" stroke-width="1.5"
+                stroke-linecap="round" />
+              <circle cx="12" cy="12" r="2.5" fill="url(#bgrad)" />
+              <defs>
+                <linearGradient id="bgrad" x1="0" y1="0" x2="24" y2="24">
+                  <stop offset="0%" stop-color="#a78bfa" />
+                  <stop offset="100%" stop-color="#60a5fa" />
+                </linearGradient>
+              </defs>
+            </svg>
+          </div>
+          <span class="brand-name">CharacterVerse</span>
+        </div>
+        <button class="sidebar-toggle-btn" onclick="toggleSidebar()" aria-label="Close sidebar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 6L6 18M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
+      <div class="sidebar-user-profile" id="sidebar-user-profile" onclick="openProfileModal()">
+        <div class="sup-avatar" id="sup-avatar-display">?</div>
+        <div class="sup-info">
+          <div class="sup-name" id="sup-name-display">Set up your profile</div>
+          <div class="sup-sub">Click to edit profile</div>
+        </div>
+        <svg class="sup-edit-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+        </svg>
+      </div>
+
+      <div class="sidebar-actions">
+        <button class="btn-create-character" onclick="openCreateCharacter()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 5v14M5 12h14" />
+          </svg>
+          Create Character
+        </button>
+      </div>
+
+      <div class="sidebar-search">
+        <div class="search-input-wrap">
+          <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8" />
+            <path d="m21 21-4.35-4.35" />
+          </svg>
+          <input type="text" id="character-search" placeholder="Search characters..."
+            oninput="filterCharacters(this.value)" />
+        </div>
+      </div>
+
+      <div class="sidebar-sections-wrap">
+        <div class="sidebar-section">
+          <div class="section-label">My Characters</div>
+          <div id="my-characters-list" class="characters-list"></div>
+          <div id="no-characters-msg" class="no-chars-msg hidden">
+            <div class="no-chars-icon">✨</div>
+            <p>No characters yet</p>
+            <span>Create your first AI character!</span>
+          </div>
+        </div>
+        <div class="sidebar-section">
+          <div class="section-label">Featured</div>
+          <div id="featured-characters-list" class="characters-list"></div>
+        </div>
+      </div>
+
+      <div class="sidebar-footer">
+        <button class="footer-btn" onclick="openAPISettings()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <circle cx="12" cy="12" r="3" />
+            <path
+              d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83" />
+          </svg>
+          API Settings
+        </button>
+        <button class="footer-btn" onclick="openGlobalSettings()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path
+              d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+            <circle cx="12" cy="12" r="3" />
+          </svg>
+          Settings
+        </button>
+      </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="main-content" id="main-content">
+
+      <!-- TOPBAR -->
+      <header class="topbar" id="topbar">
+        <div class="topbar-left">
+          <button class="hamburger-btn" onclick="toggleSidebar()" aria-label="Toggle sidebar">
+            <span></span><span></span><span></span>
+          </button>
+          <div class="topbar-char-info" id="topbar-char-info"></div>
+        </div>
+        <div class="topbar-right">
+          <div class="topbar-model-badge" id="topbar-model-badge"></div>
+          <button class="topbar-btn" onclick="clearChat()" title="Clear chat" id="clear-chat-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+            </svg>
+          </button>
+          <button class="topbar-btn" onclick="openCharSettings()" title="Character settings" id="char-settings-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path
+                d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+              <circle cx="12" cy="12" r="3" />
+            </svg>
+          </button>
+        </div>
+      </header>
+
+      <!-- WELCOME SCREEN -->
+      <div id="welcome-screen" class="welcome-screen">
+        <div class="welcome-content">
+          <div class="welcome-logo-wrap">
+            <div class="welcome-logo-glow"></div>
+            <div class="welcome-logo-icon">
+              <svg viewBox="0 0 80 80" fill="none">
+                <circle cx="40" cy="40" r="36" stroke="url(#wgrad)" stroke-width="2" />
+                <path d="M22 40c0-9.94 8.06-18 18-18s18 8.06 18 18-8.06 18-18 18" stroke="url(#wgrad)"
+                  stroke-width="2.5" stroke-linecap="round" />
+                <circle cx="40" cy="40" r="8" fill="url(#wgrad)" opacity="0.9" />
+                <circle cx="40" cy="40" r="4" fill="white" opacity="0.6" />
+                <defs>
+                  <linearGradient id="wgrad" x1="0" y1="0" x2="80" y2="80">
+                    <stop offset="0%" stop-color="#a78bfa" />
+                    <stop offset="50%" stop-color="#818cf8" />
+                    <stop offset="100%" stop-color="#60a5fa" />
+                  </linearGradient>
+                </defs>
+              </svg>
+            </div>
+          </div>
+          <h1 class="welcome-title">Welcome to <span class="gradient-text">CharacterVerse</span></h1>
+          <p class="welcome-subtitle">Create AI characters and immerse yourself in deep, realistic conversations. Your
+            imagination is the only limit.</p>
+          <div class="welcome-features">
+            <div class="feature-pill"><span>🎭</span>Realistic Roleplay</div>
+            <div class="feature-pill"><span>🧠</span>Any LLM API</div>
+            <div class="feature-pill"><span>⚡</span>Real-time Chat</div>
+            <div class="feature-pill"><span>🔒</span>100% Private</div>
+          </div>
+          <div class="welcome-cta">
+            <button class="btn-primary large" onclick="openCreateCharacter()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 5v14M5 12h14" />
+              </svg>
+              Create Your First Character
+            </button>
+            <button class="btn-secondary large" onclick="loadFeaturedCharacter()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="5,3 19,12 5,21" />
+              </svg>
+              Try a Featured Character
+            </button>
+          </div>
+        </div>
+        <div class="orb orb-1"></div>
+        <div class="orb orb-2"></div>
+        <div class="orb orb-3"></div>
+      </div>
+
+      <!-- CHAT AREA -->
+      <div id="chat-area" class="chat-area hidden">
+        <div id="chat-messages" class="chat-messages"></div>
+        <div id="typing-indicator" class="typing-indicator hidden">
+          <div class="typing-avatar" id="typing-avatar"></div>
+          <div class="typing-bubble"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+          <span class="typing-name" id="typing-name"></span>
+        </div>
+      </div>
+
+      <!-- CHAT INPUT -->
+      <div id="chat-input-area" class="chat-input-area hidden">
+        <div class="input-container">
+          <div class="input-extras">
+            <button class="input-extra-btn" onclick="toggleMemoryPanel()" title="View context">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path
+                  d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0h10a2 2 0 0 0 2-2V9M9 21H5a2 2 0 0 1-2-2V9m0 0h18" />
+              </svg>
+            </button>
+          </div>
+          <div class="textarea-wrapper">
+            <textarea id="chat-input" placeholder="Type a message..." rows="1" onkeydown="handleInputKeydown(event)"
+              oninput="autoResizeTextarea(this)"></textarea>
+          </div>
+          <button class="send-btn" id="send-btn" onclick="sendMessage()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M22 2L11 13M22 2L15 22 11 13 2 9z" />
+            </svg>
+          </button>
+        </div>
+        <div class="input-footer">
+          <span id="token-counter" class="token-count">~0 tokens</span>
+          <span class="input-hint-text">Press <kbd>Enter</kbd> to send · <kbd>Shift+Enter</kbd> for new line</span>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- CHARACTER CREATE / EDIT MODAL -->
+  <div id="character-modal" class="modal-backdrop hidden">
+    <div class="modal-container character-modal-container">
+      <div class="modal-header char-modal-header">
+        <h2 id="char-modal-title">Create Character</h2>
+        <button class="modal-close-btn" onclick="closeCharacterModal()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 6L6 18M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
+      <div class="modal-body char-modal-body">
+        <!-- Avatar -->
+        <div class="avatar-section">
+          <div class="avatar-upload-area" id="avatar-preview-area" onclick="triggerAvatarUpload()">
+            <div id="avatar-placeholder" class="avatar-placeholder">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                <circle cx="12" cy="7" r="4" />
+              </svg>
+              <span>Add Avatar</span>
+            </div>
+            <img id="avatar-preview-img" class="avatar-preview-img hidden" alt="Character avatar" />
+          </div>
+          <input type="file" id="avatar-file-input" accept="image/*" class="hidden"
+            onchange="handleAvatarUpload(event)" />
+          <div class="avatar-actions">
+            <button class="btn-ghost sm" onclick="triggerAvatarUpload()">Upload</button>
+            <button class="btn-ghost sm" onclick="generateAvatarEmoji()">Emoji</button>
+          </div>
+          <div id="emoji-panel" class="emoji-panel hidden">
+            <div class="emoji-grid" id="emoji-grid"></div>
+          </div>
+        </div>
+
+        <!-- Fields -->
+        <div class="char-form-fields">
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Character Name *</label>
+              <input type="text" id="char-name" class="form-input" placeholder="e.g. Aria, Detective Kane..." />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Title / Role</label>
+              <input type="text" id="char-title" class="form-input" placeholder="e.g. Space Explorer..." />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Short Description</label>
+            <input type="text" id="char-description" class="form-input"
+              placeholder="Brief description shown in the list..." />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">System Prompt — Character Definition * <span
+                class="label-badge">Core</span></label>
+            <div class="system-prompt-toolbar">
+              <button class="prompt-helper-btn" onclick="insertPromptTemplate('base')">Base</button>
+              <button class="prompt-helper-btn" onclick="insertPromptTemplate('anime')">Anime</button>
+              <button class="prompt-helper-btn" onclick="insertPromptTemplate('noir')">Noir</button>
+              <button class="prompt-helper-btn" onclick="insertPromptTemplate('fantasy')">Fantasy</button>
+              <button class="prompt-helper-btn" onclick="insertPromptTemplate('scifi')">Sci-Fi</button>
+            </div>
+            <textarea id="char-system-prompt" class="form-textarea" rows="7"
+              placeholder="Describe your character in detail: personality, speaking style, backstory, mannerisms, emotional responses..."></textarea>
+            <div class="prompt-char-count"><span id="prompt-chars">0</span> characters</div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Opening Message
+              <span class="tooltip-btn" title="The first message the character sends when chat starts">?</span>
+            </label>
+            <textarea id="char-greeting" class="form-textarea" rows="3"
+              placeholder="What does the character say when you first start a chat?"></textarea>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">World / Scenario Context
+              <span class="tooltip-btn" title="Setting and situation for the roleplay">?</span>
+            </label>
+            <textarea id="char-world" class="form-textarea" rows="2"
+              placeholder="Describe the world, setting, and scenario context..."></textarea>
+          </div>
+
+          <!-- Advanced -->
+          <div class="advanced-section">
+            <button class="advanced-toggle" onclick="toggleAdvanced()" id="advanced-toggle-btn">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="m6 9 6 6 6-6" />
+              </svg>
+              Advanced Settings
+            </button>
+            <div id="advanced-panel" class="advanced-panel hidden">
+              <div class="form-row">
+                <div class="form-group">
+                  <label class="form-label">Temperature</label>
+                  <div class="slider-group">
+                    <input type="range" id="char-temperature" class="range-slider" min="0" max="2" step="0.05"
+                      value="0.85" oninput="updateSliderValue(this,'temp-value')" />
+                    <div class="slider-labels"><span>Precise</span><span id="temp-value"
+                        class="slider-val">0.85</span><span>Creative</span></div>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Max Tokens</label>
+                  <div class="slider-group">
+                    <input type="range" id="char-max-tokens" class="range-slider" min="64" max="4096" step="64"
+                      value="1024" oninput="updateSliderValue(this,'tokens-value')" />
+                    <div class="slider-labels"><span>Short</span><span id="tokens-value"
+                        class="slider-val">1024</span><span>Long</span></div>
+                  </div>
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label class="form-label">Top P</label>
+                  <div class="slider-group">
+                    <input type="range" id="char-top-p" class="range-slider" min="0" max="1" step="0.05" value="0.9"
+                      oninput="updateSliderValue(this,'topp-value')" />
+                    <div class="slider-labels"><span>0</span><span id="topp-value"
+                        class="slider-val">0.9</span><span>1</span></div>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Frequency Penalty</label>
+                  <div class="slider-group">
+                    <input type="range" id="char-freq-penalty" class="range-slider" min="0" max="2" step="0.1"
+                      value="0.3" oninput="updateSliderValue(this,'freq-value')" />
+                    <div class="slider-labels"><span>0</span><span id="freq-value"
+                        class="slider-val">0.3</span><span>2</span></div>
+                  </div>
+                </div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Response Style</label>
+                <div class="style-chips">
+                  <label class="style-chip"><input type="radio" name="response-style" value="roleplay"
+                      checked /><span>🎭 Deep Roleplay</span></label>
+                  <label class="style-chip"><input type="radio" name="response-style" value="chat" /><span>💬 Casual
+                      Chat</span></label>
+                  <label class="style-chip"><input type="radio" name="response-style" value="story" /><span>📖 Story
+                      Mode</span></label>
+                </div>
+              </div>
+
+              <!-- Name Calling Toggle -->
+              <div class="name-calling-toggle-section">
+                <div class="setting-item glass-setting">
+                  <div class="setting-info">
+                    <div class="setting-name">🗣 Address User by Name</div>
+                    <div class="setting-desc">Character will call the user by their profile name in conversation</div>
+                  </div>
+                  <div class="toggle-switch-wrap">
+                    <input type="checkbox" id="char-use-user-name" class="toggle-checkbox" />
+                    <label for="char-use-user-name" class="toggle-switch"></label>
+                  </div>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Character Tags</label>
+                <div class="tags-input-wrap">
+                  <input type="text" id="char-tags-input" class="form-input" placeholder="Type tag + Enter..."
+                    onkeydown="handleTagInput(event)" />
+                  <div id="char-tags-display" class="tags-display"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer char-modal-footer">
+        <button class="btn-ghost" onclick="closeCharacterModal()">Cancel</button>
+        <button class="btn-primary auto-width" onclick="saveCharacter()" id="save-char-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+            <polyline points="17,21 17,13 7,13 7,21" />
+            <polyline points="7,3 7,8 15,8" />
+          </svg>
+          Save Character
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SETTINGS MODAL -->
+  <div id="settings-modal" class="modal-backdrop hidden">
+    <div class="modal-container settings-modal-container">
+      <div class="modal-header">
+        <h2>⚙️ Settings</h2>
+        <button class="modal-close-btn" onclick="closeSettingsModal()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 6L6 18M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="settings-tabs">
+          <button class="settings-tab active" onclick="switchSettingsTab('general',this)">General</button>
+          <button class="settings-tab" onclick="switchSettingsTab('appearance',this)">Appearance</button>
+          <button class="settings-tab" onclick="switchSettingsTab('chat',this)">Chat</button>
+          <button class="settings-tab" onclick="switchSettingsTab('privacy',this)">Privacy</button>
+        </div>
+
+        <div id="settings-general" class="settings-panel active">
+          <div class="setting-item">
+            <div class="setting-info">
+              <div class="setting-name">Language / Direction</div>
+              <div class="setting-desc">UI and response language</div>
+            </div>
+            <select class="form-select" id="pref-language" onchange="onLanguageChange(this.value)">
+              <option value="">Auto Detect</option>
+              <option value="en">🇺🇸 English (LTR)</option>
+              <option value="fa">🇮🇷 Persian فارسی (RTL)</option>
+              <option value="ar">🇸🇦 Arabic (RTL)</option>
+              <option value="es">🇪🇸 Spanish</option>
+              <option value="fr">🇫🇷 French</option>
+              <option value="de">🇩🇪 German</option>
+              <option value="ja">🇯🇵 Japanese</option>
+              <option value="zh">🇨🇳 Chinese</option>
+            </select>
+          </div>
+          <div class="setting-item">
+            <div class="setting-info">
+              <div class="setting-name">Text Direction</div>
+              <div class="setting-desc">Override automatic detection</div>
+            </div>
+            <div class="dir-options">
+              <button class="dir-btn active" id="dir-btn-ltr" onclick="setDirection('ltr',this)">LTR ←</button>
+              <button class="dir-btn" id="dir-btn-auto" onclick="setDirection('auto',this)">Auto</button>
+              <button class="dir-btn" id="dir-btn-rtl" onclick="setDirection('rtl',this)">→ RTL</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="settings-appearance" class="settings-panel">
+          <div class="setting-item">
+            <div class="setting-info">
+              <div class="setting-name">Theme</div>
+            </div>
+            <div class="theme-options">
+              <button class="theme-btn active" id="theme-btn-dark" onclick="setTheme('dark',this)">Dark</button>
+              <button class="theme-btn" id="theme-btn-midnight" onclick="setTheme('midnight',this)">Midnight</button>
+              <button class="theme-btn" id="theme-btn-aurora" onclick="setTheme('aurora',this)">Aurora</button>
+              <button class="theme-btn" id="theme-btn-cyberpunk" onclick="setTheme('cyberpunk',this)">Cyberpunk</button>
+              <button class="theme-btn" id="theme-btn-crimson" onclick="setTheme('crimson',this)">Crimson</button>
+              <button class="theme-btn" id="theme-btn-light" onclick="setTheme('light',this)">Light Glass</button>
+            </div>
+          </div>
+          <div class="setting-item">
+            <div class="setting-info">
+              <div class="setting-name">Font Size</div>
+            </div>
+            <div class="slider-group compact">
+              <input type="range" class="range-slider" min="12" max="20" value="15" id="font-size-slider"
+                oninput="updateFontSize(this.value)" />
+              <span class="slider-val" id="font-size-val">15px</span>
+            </div>
+          </div>
+          <div class="setting-item">
+            <div class="setting-info">
+              <div class="setting-name">Animations</div>
+              <div class="setting-desc">UI transitions and effects</div>
+            </div>
+            <div class="toggle-switch-wrap"><input type="checkbox" id="animations-toggle" class="toggle-checkbox"
+                checked /><label for="animations-toggle" class="toggle-switch"></label></div>
+          </div>
+        </div>
+
+        <div id="settings-chat" class="settings-panel">
+          <div class="setting-item">
+            <div class="setting-info">
+              <div class="setting-name">Streaming Responses</div>
+              <div class="setting-desc">Typewriter effect for responses</div>
+            </div>
+            <div class="toggle-switch-wrap"><input type="checkbox" id="streaming-toggle" class="toggle-checkbox"
+                checked /><label for="streaming-toggle" class="toggle-switch"></label></div>
+          </div>
+          <div class="setting-item">
+            <div class="setting-info">
+              <div class="setting-name">Message History</div>
+              <div class="setting-desc">Messages kept in context</div>
+            </div>
+            <select class="form-select" id="history-limit">
+              <option value="10">Last 10</option>
+              <option value="20" selected>Last 20</option>
+              <option value="40">Last 40</option>
+              <option value="0">Unlimited</option>
+            </select>
+          </div>
+          <div class="setting-item">
+            <div class="setting-info">
+              <div class="setting-name">Show Timestamps</div>
+            </div>
+            <div class="toggle-switch-wrap"><input type="checkbox" id="timestamps-toggle" class="toggle-checkbox"
+                checked /><label for="timestamps-toggle" class="toggle-switch"></label></div>
+          </div>
+          <div class="setting-item">
+            <div class="setting-info">
+              <div class="setting-name">Roleplay Enhancer</div>
+              <div class="setting-desc">Auto-enhance prompts for deeper roleplay</div>
+            </div>
+            <div class="toggle-switch-wrap"><input type="checkbox" id="roleplay-enhancer" class="toggle-checkbox"
+                checked /><label for="roleplay-enhancer" class="toggle-switch"></label></div>
+          </div>
+          <div class="setting-item">
+            <div class="setting-info">
+              <div class="setting-name">Streaming Speed</div>
+              <div class="setting-desc">Characters per interval</div>
+            </div>
+            <div class="slider-group compact">
+              <input type="range" id="stream-speed-slider" class="range-slider" min="5" max="50" value="18"
+                oninput="updateStreamSpeed(this.value)" />
+              <span class="slider-val" id="stream-speed-val">Fast</span>
+            </div>
+          </div>
+        </div>
+
+        <div id="settings-privacy" class="settings-panel">
+          <div class="setting-item danger-zone">
+            <div class="setting-info">
+              <div class="setting-name">Clear All Chat History</div>
+              <div class="setting-desc">Delete all conversations</div>
+            </div>
+            <button class="btn-danger sm" onclick="clearAllHistory()">Clear</button>
+          </div>
+          <div class="setting-item danger-zone">
+            <div class="setting-info">
+              <div class="setting-name">Delete All Characters</div>
+              <div class="setting-desc">Remove all created characters</div>
+            </div>
+            <button class="btn-danger sm" onclick="deleteAllCharacters()">Delete All</button>
+          </div>
+          <div class="setting-item danger-zone">
+            <div class="setting-info">
+              <div class="setting-name">Factory Reset</div>
+              <div class="setting-desc">Clear everything including API</div>
+            </div>
+            <button class="btn-danger sm" onclick="resetEverything()">Reset</button>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer row-footer">
+        <button class="btn-ghost" onclick="closeSettingsModal()">Cancel</button>
+        <button class="btn-primary auto-width" onclick="saveSettings()">Save Settings</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CONTEXT MENU -->
+  <div id="context-menu" class="context-menu hidden">
+    <button onclick="contextAction('edit')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        stroke-width="1.5">
+        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+      </svg>Edit Character</button>
+    <button onclick="contextAction('duplicate')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        stroke-width="1.5">
+        <rect x="9" y="9" width="13" height="13" rx="2" />
+        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+      </svg>Duplicate</button>
+    <button onclick="contextAction('export')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        stroke-width="1.5">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+        <polyline points="7,10 12,15 17,10" />
+        <line x1="12" y1="15" x2="12" y2="3" />
+      </svg>Export JSON</button>
+    <div class="context-divider"></div>
+    <button class="danger" onclick="contextAction('delete')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        stroke-width="1.5">
+        <polyline points="3,6 5,6 21,6" />
+        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+      </svg>Delete</button>
+  </div>
+
+  <!-- TOAST CONTAINER -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <!-- MEMORY PANEL -->
+  <div id="memory-panel" class="memory-panel hidden">
+    <div class="memory-header">
+      <h3>📋 Context Inspector</h3>
+      <button onclick="toggleMemoryPanel()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M18 6L6 18M6 6l12 12" />
+        </svg></button>
+    </div>
+    <div class="memory-body">
+      <div class="memory-section">
+        <div class="memory-label">System Prompt Preview</div>
+        <div id="memory-system" class="memory-content"></div>
+      </div>
+      <div class="memory-section">
+        <div class="memory-label">Messages in Context</div>
+        <div id="memory-msg-count" class="memory-content"></div>
+      </div>
+      <div class="memory-section">
+        <div class="memory-label">Estimated Tokens</div>
+        <div id="memory-tokens" class="memory-content"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+
+</html>
