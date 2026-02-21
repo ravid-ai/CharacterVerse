@@ -75,24 +75,37 @@ document.addEventListener('DOMContentLoaded', () => {
   }, 2000);
 });
 
-function loadSavedData() {
+async function loadSavedData() {
   try {
+    // لود کردن تنظیمات شخصی از حافظه مرورگر (اینا نباید برن تو دیتابیس عمومی)
     state.apiUrl = localStorage.getItem('cv_api_url') || '';
     state.apiKey = localStorage.getItem('cv_api_key') || '';
     state.apiModel = localStorage.getItem('cv_api_model') || 'gpt-4o';
-    const chars = localStorage.getItem('cv_characters');
-    if (chars) state.characters = JSON.parse(chars);
     const hist = localStorage.getItem('cv_history');
     if (hist) state.chatHistory = JSON.parse(hist);
     const sett = localStorage.getItem('cv_settings');
     if (sett) state.settings = { ...state.settings, ...JSON.parse(sett) };
     const prof = localStorage.getItem('cv_profile');
     if (prof) state.profile = { ...state.profile, ...JSON.parse(prof) };
+
+    // === تغییر جدید: دریافت کاراکترها از Cloudflare D1 ===
+    try {
+      const res = await fetch('/api/characters'); // درخواست به بک‌اندی که ساختی
+      if (res.ok) {
+        state.characters = await res.json();
+        console.log('Characters loaded from Cloud!');
+      }
+    } catch (err) {
+      console.error('Cloud load failed, using local backup:', err);
+      // اگه اینترنت نبود یا سرور ارور داد، از نسخه قدیمی لوکال استفاده کن
+      const localChars = localStorage.getItem('cv_characters');
+      if (localChars) state.characters = JSON.parse(localChars);
+    }
+
     applySettings();
     updateSidebarProfile();
   } catch (e) { console.error('Load error:', e); }
 }
-
 function saveData() {
   try {
     localStorage.setItem('cv_api_url', state.apiUrl);
@@ -627,17 +640,28 @@ function openEditCharacter(id) {
   populateEmojiGrid();
 }
 
-function saveCharacter() {
+async function saveCharacter() {
   const name = document.getElementById('char-name').value.trim();
   const systemPrompt = document.getElementById('char-system-prompt').value.trim();
+
   if (!name) { showToast('error', 'Character name is required'); return; }
   if (!systemPrompt) { showToast('error', 'System prompt is required'); return; }
+
+  // تغییر دکمه به حالت "در حال ذخیره..."
+  const saveBtn = document.getElementById('save-char-btn');
+  const originalBtnText = saveBtn ? saveBtn.innerHTML : 'Save';
+  if (saveBtn) {
+     saveBtn.disabled = true;
+     saveBtn.innerHTML = 'Saving to Cloud...';
+  }
+
   const id = editingCharId || `char_${Date.now()}`;
   const imgEl = document.getElementById('avatar-preview-img');
   const avatar = imgEl.classList.contains('hidden') ? '' : (imgEl.src?.startsWith('data:') ? imgEl.src : '');
   const responseStyle = document.querySelector('input[name="response-style"]:checked')?.value || 'roleplay';
   const useUserName = document.getElementById('char-use-user-name').checked;
-  state.characters[id] = {
+
+  const newChar = {
     id, name,
     title: document.getElementById('char-title').value.trim(),
     description: document.getElementById('char-description').value.trim(),
@@ -652,11 +676,34 @@ function saveCharacter() {
     emoji: document.getElementById('avatar-preview-area').dataset.emoji || '',
     createdAt: state.characters[id]?.createdAt || Date.now()
   };
-  saveData(); renderCharactersList(); closeCharacterModal();
-  showToast('success', `Character "${name}" saved!`);
+
+  // 1. اول توی خود برنامه نشونش بده (که کاربر حس کنه سریعه)
+  state.characters[id] = newChar;
+  renderCharactersList();
+  closeCharacterModal();
+
+  // 2. حالا بفرستش سمت دیتابیس ابری
+  try {
+    await fetch('/api/characters', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ char: newChar })
+    });
+    showToast('success', `Character "${name}" saved to Cloud!`);
+  } catch (e) {
+    console.error('Cloud save error:', e);
+    showToast('error', 'Saved locally only (Cloud Error)');
+  } finally {
+    // برگردوندن دکمه به حالت اول
+    if (saveBtn) {
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = originalBtnText;
+    }
+  }
+
+  saveData(); // نسخه لوکال هم آپدیت بمونه
   loadCharacter(id);
 }
-
 // ===== AVATAR =====
 function triggerAvatarUpload() { document.getElementById('avatar-file-input').click(); }
 function handleAvatarUpload(e) {
@@ -965,3 +1012,4 @@ function showToast(type, msg) {
     setTimeout(() => toast.remove(), 300);
   }, 3500);
 }
+
